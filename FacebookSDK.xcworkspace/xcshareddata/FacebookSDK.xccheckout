@@ -10,6 +10,8 @@
 	<string>FacebookSDK</string>
 	<key>IDESourceControlProjectOriginsDictionary</key>
 	<dict>
+		<key>14032B5E71870C910F190CD49D349051E0E1F909</key>
+		<string>github.com:scopely/iOS-GitSlave.git</string>
 		<key>38C2A0D4F62B675E8C16C8BC1437C7753846C8AC</key>
 		<string>git://github.com/AliSoftware/OHHTTPStubs.git</string>
 		<key>61C4B9E3B61282127C102C87B46B8CDE985974AE</key>
@@ -25,6 +27,8 @@
 	<string>FacebookSDK.xcworkspace</string>
 	<key>IDESourceControlProjectRelativeInstallPathDictionary</key>
 	<dict>
+		<key>14032B5E71870C910F190CD49D349051E0E1F909</key>
+		<string>../..</string>
 		<key>38C2A0D4F62B675E8C16C8BC1437C7753846C8AC</key>
 		<string>../vendor/OHHTTPStubs</string>
 		<key>61C4B9E3B61282127C102C87B46B8CDE985974AE</key>
@@ -44,6 +48,14 @@
 	<string>A20D666FF4B08EFE53F147818C2D4D17E2242912</string>
 	<key>IDESourceControlProjectWCConfigurations</key>
 	<array>
+		<dict>
+			<key>IDESourceControlRepositoryExtensionIdentifierKey</key>
+			<string>public.vcs.git</string>
+			<key>IDESourceControlWCCIdentifierKey</key>
+			<string>14032B5E71870C910F190CD49D349051E0E1F909</string>
+			<key>IDESourceControlWCCName</key>
+			<string></string>
+		</dict>
 		<dict>
 			<key>IDESourceControlRepositoryExtensionIdentifierKey</key>
 			<string>public.vcs.git</string>
