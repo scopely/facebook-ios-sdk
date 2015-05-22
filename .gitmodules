@@ -13,6 +13,4 @@
 [submodule "vendor/ios-snapshot-test-case"]
 	path = vendor/ios-snapshot-test-case
 	url = git://github.com/facebook/ios-snapshot-test-case.git
-[submodule "vendor/xctool"]
-	path = vendor/xctool
-	url = git://github.com/facebook/xctool.git
+
