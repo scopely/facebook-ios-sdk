@@ -87,6 +87,28 @@ typedef NS_ENUM(NSUInteger, FBSDKInternalUtilityVersionShift)
   }
 }
 
++ (NSBundle *)bundleForStrings
+{
+  static NSBundle *bundle;
+  static dispatch_once_t onceToken;
+  dispatch_once(&onceToken, ^{
+    NSString *stringsBundlePath = [[NSBundle mainBundle] pathForResource:@"FacebookSDKStrings"
+                                                                  ofType:@"bundle"];
+    bundle = [NSBundle bundleWithPath:stringsBundlePath] ?: [NSBundle mainBundle];
+  });
+  return bundle;
+}
+
++ (id)convertRequestValue:(id)value
+{
+  if ([value isKindOfClass:[NSNumber class]]) {
+    value = [(NSNumber *)value stringValue];
+  } else if ([value isKindOfClass:[NSURL class]]) {
+    value = [(NSURL *)value absoluteString];
+  }
+  return value;
+}
+
 + (unsigned long)currentTimeInMilliseconds
 {
   struct timeval time;
@@ -102,7 +124,7 @@ setJSONStringForObject:(id)object
   if (!object || !key) {
     return YES;
   }
-  NSString *JSONString = [self JSONStringForObject:object error:errorRef];
+  NSString *JSONString = [self JSONStringForObject:object error:errorRef invalidObjectHandler:NULL];
   if (!JSONString) {
     return NO;
   }
@@ -114,6 +136,25 @@ setJSONStringForObject:(id)object
 {
   if (object && key) {
     [dictionary setObject:object forKey:key];
+  }
+}
+
++ (void)extractPermissionsFromResponse:(NSDictionary *)responseObject
+                    grantedPermissions:(NSMutableSet *)grantedPermissions
+                   declinedPermissions:(NSMutableSet *)declinedPermissions
+{
+  NSArray *resultData = responseObject[@"data"];
+  if (resultData.count > 0) {
+    for (NSDictionary *permissionsDictionary in resultData) {
+      NSString *permissionName = permissionsDictionary[@"permission"];
+      NSString *status = permissionsDictionary[@"status"];
+
+      if ([status isEqualToString:@"granted"]) {
+        [grantedPermissions addObject:permissionName];
+      } else if ([status isEqualToString:@"declined"]) {
+        [declinedPermissions addObject:permissionName];
+      }
+    }
   }
 }
 
@@ -186,6 +227,84 @@ setJSONStringForObject:(id)object
 
 + (BOOL)isOSRunTimeVersionAtLeast:(NSOperatingSystemVersion)version
 {
+  return ([self _compareOperatingSystemVersion:[self operatingSystemVersion] toVersion:version] != NSOrderedAscending);
+}
+
++ (BOOL)isSafariBundleIdentifier:(NSString *)bundleIdentifier
+{
+  return ([bundleIdentifier isEqualToString:@"com.apple.mobilesafari"] ||
+          [bundleIdentifier isEqualToString:@"com.apple.SafariViewService"]);
+}
+
++ (BOOL)isUIKitLinkTimeVersionAtLeast:(FBSDKUIKitVersion)version
+{
+  static int32_t linkTimeMajorVersion;
+  static dispatch_once_t getVersionOnce;
+  dispatch_once(&getVersionOnce, ^{
+    int32_t linkTimeVersion = NSVersionOfLinkTimeLibrary("UIKit");
+    linkTimeMajorVersion = ((MAX(linkTimeVersion, 0) & FBSDKInternalUtilityMajorVersionMask) >> FBSDKInternalUtilityMajorVersionShift);
+  });
+  return (version <= linkTimeMajorVersion);
+}
+
++ (BOOL)isUIKitRunTimeVersionAtLeast:(FBSDKUIKitVersion)version
+{
+  static int32_t runTimeMajorVersion;
+  static dispatch_once_t getVersionOnce;
+  dispatch_once(&getVersionOnce, ^{
+    int32_t runTimeVersion = NSVersionOfRunTimeLibrary("UIKit");
+    runTimeMajorVersion = ((MAX(runTimeVersion, 0) & FBSDKInternalUtilityMajorVersionMask) >> FBSDKInternalUtilityMajorVersionShift);
+  });
+  return (version <= runTimeMajorVersion);
+}
+
++ (NSString *)JSONStringForObject:(id)object
+                            error:(NSError *__autoreleasing *)errorRef
+             invalidObjectHandler:(id(^)(id object, BOOL *stop))invalidObjectHandler
+{
+  if (invalidObjectHandler || ![NSJSONSerialization isValidJSONObject:object]) {
+    object = [self _convertObjectToJSONObject:object invalidObjectHandler:invalidObjectHandler stop:NULL];
+    if (![NSJSONSerialization isValidJSONObject:object]) {
+      if (errorRef != NULL) {
+        *errorRef = [FBSDKError invalidArgumentErrorWithName:@"object"
+                                                       value:object
+                                                     message:@"Invalid object for JSON serialization."];
+      }
+      return nil;
+    }
+  }
+  NSData *data = [NSJSONSerialization dataWithJSONObject:object options:0 error:errorRef];
+  if (!data) {
+    return nil;
+  }
+  return [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+}
+
++ (BOOL)object:(id)object isEqualToObject:(id)other;
+{
+  if (object == other) {
+    return YES;
+  }
+  if (!object || !other) {
+    return NO;
+  }
+  return [object isEqual:other];
+}
+
++ (id)objectForJSONString:(NSString *)string error:(NSError *__autoreleasing *)errorRef
+{
+  NSData *data = [string dataUsingEncoding:NSUTF8StringEncoding];
+  if (!data) {
+    if (errorRef != NULL) {
+      *errorRef = nil;
+    }
+    return nil;
+  }
+  return [NSJSONSerialization JSONObjectWithData:data options:NSJSONReadingAllowFragments error:errorRef];
+}
+
++ (NSOperatingSystemVersion)operatingSystemVersion
+{
   static NSOperatingSystemVersion operatingSystemVersion = {
     .majorVersion = 0,
     .minorVersion = 0,
@@ -214,84 +333,7 @@ setJSONStringForObject:(id)object
       }
     }
   });
-  return ([self _compareOperatingSystemVersion:operatingSystemVersion toVersion:version] != NSOrderedDescending);
-}
-
-+ (BOOL)isSafariBundleIdentifier:(NSString *)bundleIdentifier
-{
-  return [bundleIdentifier isEqualToString:@"com.apple.mobilesafari"];
-}
-
-+ (BOOL)isUIKitLinkTimeVersionAtLeast:(FBSDKUIKitVersion)version
-{
-  static int32_t linkTimeMajorVersion;
-  static dispatch_once_t getVersionOnce;
-  dispatch_once(&getVersionOnce, ^{
-    int32_t linkTimeVersion = NSVersionOfLinkTimeLibrary("UIKit");
-    linkTimeMajorVersion = ((MAX(linkTimeVersion, 0) & FBSDKInternalUtilityMajorVersionMask) >> FBSDKInternalUtilityMajorVersionShift);
-  });
-  return (version <= linkTimeMajorVersion);
-}
-
-+ (BOOL)isUIKitRunTimeVersionAtLeast:(FBSDKUIKitVersion)version
-{
-  static int32_t runTimeMajorVersion;
-  static dispatch_once_t getVersionOnce;
-  dispatch_once(&getVersionOnce, ^{
-    int32_t runTimeVersion = NSVersionOfRunTimeLibrary("UIKit");
-    runTimeMajorVersion = ((MAX(runTimeVersion, 0) & FBSDKInternalUtilityMajorVersionMask) >> FBSDKInternalUtilityMajorVersionShift);
-  });
-  return (version <= runTimeMajorVersion);
-}
-
-+ (NSString *)JSONStringForObject:(id)object error:(NSError *__autoreleasing *)errorRef
-{
-  if (![NSJSONSerialization isValidJSONObject:object]) {
-    if (errorRef != NULL) {
-      *errorRef = [FBSDKError invalidArgumentErrorWithName:@"object"
-                                                     value:object
-                                                   message:@"Invalid object for JSON serialization."];
-    }
-    return nil;
-  }
-  NSData *data = [NSJSONSerialization dataWithJSONObject:object options:0 error:errorRef];
-  if (!data) {
-    return nil;
-  }
-  return [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
-}
-
-+ (NSString *)JSONStringForObject:(id)object
-                            error:(NSError *__autoreleasing *)errorRef
-             invalidObjectHandler:(id(^)(id object, BOOL *stop))invalidObjectHandler
-{
-  if (invalidObjectHandler) {
-    object = [self _convertObjectToJSONObject:object invalidObjectHandler:invalidObjectHandler stop:NULL];
-  }
-  return [self JSONStringForObject:object error:errorRef];
-}
-
-+ (BOOL)object:(id)object isEqualToObject:(id)other;
-{
-  if (object == other) {
-    return YES;
-  }
-  if (!object || !other) {
-    return NO;
-  }
-  return [object isEqual:other];
-}
-
-+ (id)objectForJSONString:(NSString *)string error:(NSError *__autoreleasing *)errorRef
-{
-  NSData *data = [string dataUsingEncoding:NSUTF8StringEncoding];
-  if (!data) {
-    if (errorRef != NULL) {
-      *errorRef = nil;
-    }
-    return nil;
-  }
-  return [NSJSONSerialization JSONObjectWithData:data options:NSJSONReadingAllowFragments error:errorRef];
+  return operatingSystemVersion;
 }
 
 + (NSString *)queryStringWithDictionary:(NSDictionary *)dictionary
@@ -310,16 +352,11 @@ setJSONStringForObject:(id)object
     [keys sortUsingSelector:@selector(compare:)];
     BOOL stop = NO;
     for (NSString *key in keys) {
-      id value = dictionary[key];
-      if ([value isKindOfClass:[NSURL class]]) {
-        value = [(NSURL *)value absoluteString];
-      }
+      id value = [self convertRequestValue:dictionary[key]];
       if ([value isKindOfClass:[NSString class]]) {
         value = [FBSDKUtility URLEncode:value];
       }
-      if (invalidObjectHandler &&
-          ![value isKindOfClass:[NSString class]] &&
-          ![value isKindOfClass:[NSNumber class]]) {
+      if (invalidObjectHandler && ![value isKindOfClass:[NSString class]]) {
         value = invalidObjectHandler(value, &stop);
         if (stop) {
           break;
@@ -401,11 +438,73 @@ setJSONStringForObject:(id)object
   }
 }
 
+static NSMapTable *_transientObjects;
+
++ (void)registerTransientObject:(id)object
+{
+  NSAssert([NSThread isMainThread], @"Must be called from the main thread!");
+  if (!_transientObjects) {
+    _transientObjects = [[NSMapTable alloc] init];
+  }
+  NSUInteger count = [(NSNumber *)[_transientObjects objectForKey:object] unsignedIntegerValue];
+  [_transientObjects setObject:@(count + 1) forKey:object];
+}
+
++ (void)unregisterTransientObject:(id)object
+{
+  NSAssert([NSThread isMainThread], @"Must be called from the main thread!");
+  NSUInteger count = [(NSNumber *)[_transientObjects objectForKey:object] unsignedIntegerValue];
+  if (count == 1) {
+    [_transientObjects removeObjectForKey:object];
+  } else if (count != 0) {
+    [_transientObjects setObject:@(count - 1) forKey:object];
+  }
+}
+
++ (UIViewController *)viewControllerforView:(UIView*)view
+{
+  UIResponder *responder = view.nextResponder;
+  while (responder) {
+    if ([responder isKindOfClass:[UIViewController class]]) {
+      return (UIViewController *)responder;
+    }
+    responder = responder.nextResponder;
+  }
+  return nil;
+}
+
+#pragma mark - FB Apps Installed
+
++ (BOOL)isFacebookAppInstalled
+{
+  static dispatch_once_t onceToken;
+  dispatch_once(&onceToken, ^{
+    [FBSDKInternalUtility checkRegisteredCanOpenURLScheme:FBSDK_CANOPENURL_FACEBOOK];
+  });
+  return [[UIApplication sharedApplication]
+          canOpenURL:[[NSURL alloc] initWithScheme:FBSDK_CANOPENURL_FACEBOOK
+                                              host:nil
+                                              path:@"/"]];
+}
+
++ (BOOL)isMessengerAppInstalled
+{
+  static dispatch_once_t onceToken;
+  dispatch_once(&onceToken, ^{
+    [FBSDKInternalUtility checkRegisteredCanOpenURLScheme:FBSDK_CANOPENURL_MESSENGER];
+  });
+  return [[UIApplication sharedApplication]
+          canOpenURL:[[NSURL alloc] initWithScheme:FBSDK_CANOPENURL_MESSENGER
+                                              host:nil
+                                              path:@"/"]];
+
+}
+
 #pragma mark - Object Lifecycle
 
 - (instancetype)init
 {
-  FBSDK_NOT_DESIGNATED_INITIALIZER
+  FBSDK_NO_DESIGNATED_INITIALIZER();
   return nil;
 }
 
@@ -418,13 +517,13 @@ setJSONStringForObject:(id)object
     return NSOrderedAscending;
   } else if (version1.majorVersion > version2.majorVersion) {
     return NSOrderedDescending;
-  } else if (version1.minorVersion > version2.minorVersion) {
-    return NSOrderedAscending;
   } else if (version1.minorVersion < version2.minorVersion) {
-    return NSOrderedDescending;
-  } else if (version1.patchVersion > version2.patchVersion) {
     return NSOrderedAscending;
+  } else if (version1.minorVersion > version2.minorVersion) {
+    return NSOrderedDescending;
   } else if (version1.patchVersion < version2.patchVersion) {
+    return NSOrderedAscending;
+  } else if (version1.patchVersion > version2.patchVersion) {
     return NSOrderedDescending;
   } else {
     return NSOrderedSame;
@@ -438,12 +537,14 @@ setJSONStringForObject:(id)object
   __block BOOL stop = NO;
   if ([object isKindOfClass:[NSString class]] || [object isKindOfClass:[NSNumber class]]) {
     // good to go, keep the object
+  } else if ([object isKindOfClass:[NSURL class]]) {
+    object = [(NSURL *)object absoluteString];
   } else if ([object isKindOfClass:[NSDictionary class]]) {
     NSMutableDictionary *dictionary = [[NSMutableDictionary alloc] init];
     [(NSDictionary *)object enumerateKeysAndObjectsUsingBlock:^(id key, id obj, BOOL *dictionaryStop) {
-      [FBSDKInternalUtility dictionary:dictionary
-                     setObject:[self _convertObjectToJSONObject:obj invalidObjectHandler:invalidObjectHandler stop:&stop]
-                        forKey:[FBSDKTypeUtility stringValue:key]];
+      [self dictionary:dictionary
+             setObject:[self _convertObjectToJSONObject:obj invalidObjectHandler:invalidObjectHandler stop:&stop]
+                forKey:[FBSDKTypeUtility stringValue:key]];
       if (stop) {
         *dictionaryStop = YES;
       }
@@ -452,8 +553,8 @@ setJSONStringForObject:(id)object
   } else if ([object isKindOfClass:[NSArray class]]) {
     NSMutableArray *array = [[NSMutableArray alloc] init];
     for (id obj in (NSArray *)object) {
-      [FBSDKInternalUtility array:array
-                addObject:[self _convertObjectToJSONObject:obj invalidObjectHandler:invalidObjectHandler stop:&stop]];
+      id convertedObj = [self _convertObjectToJSONObject:obj invalidObjectHandler:invalidObjectHandler stop:&stop];
+      [self array:array addObject:convertedObj];
       if (stop) {
         break;
       }
@@ -466,6 +567,91 @@ setJSONStringForObject:(id)object
     *stopRef = stop;
   }
   return object;
+}
+
++ (void)validateAppID
+{
+  if (![FBSDKSettings appID]) {
+    NSString *reason = @"App ID not found. Add a string value with your app ID for the key "
+                       @"FacebookAppID to the Info.plist or call [FBSDKSettings setAppID:].";
+    @throw [NSException exceptionWithName:@"InvalidOperationException" reason:reason userInfo:nil];
+  }
+}
+
++ (void)validateURLSchemes
+{
+  [self validateAppID];
+  NSString *defaultUrlScheme = [NSString stringWithFormat:@"fb%@%@", [FBSDKSettings appID], [FBSDKSettings appURLSchemeSuffix] ?: @""];
+  if (![self isRegisteredURLScheme:defaultUrlScheme]) {
+    NSString *reason = [NSString stringWithFormat:@"%@ is not registered as a URL scheme. Please add it in your Info.plist", defaultUrlScheme];
+    @throw [NSException exceptionWithName:@"InvalidOperationException" reason:reason userInfo:nil];
+  }
+}
+
+
++ (UIViewController *)topMostViewController
+{
+  UIViewController *topController = [UIApplication sharedApplication].keyWindow.rootViewController;
+  while (topController.presentedViewController) {
+    topController = topController.presentedViewController;
+  }
+  return topController;
+}
+
+
++ (BOOL)isRegisteredURLScheme:(NSString *)urlScheme {
+  static dispatch_once_t fetchBundleOnce;
+  static NSArray *urlTypes = nil;
+
+  dispatch_once(&fetchBundleOnce, ^{
+    urlTypes = [[[NSBundle mainBundle] infoDictionary] valueForKey:@"CFBundleURLTypes"];
+  });
+  for (NSDictionary *urlType in urlTypes) {
+    NSArray *urlSchemes = [urlType valueForKey:@"CFBundleURLSchemes"];
+    if ([urlSchemes containsObject:urlScheme]) {
+      return YES;
+    }
+  }
+  return NO;
+}
+
++ (void)checkRegisteredCanOpenURLScheme:(NSString *)urlScheme
+{
+  static dispatch_once_t initCheckedSchemesOnce;
+  static NSMutableSet *checkedSchemes = nil;
+
+  dispatch_once(&initCheckedSchemesOnce, ^{
+    checkedSchemes = [NSMutableSet set];
+  });
+
+  @synchronized(self) {
+    if ([checkedSchemes containsObject:urlScheme]) {
+      return;
+    } else {
+      [checkedSchemes addObject:urlScheme];
+    }
+  }
+
+  if (![self isRegisteredCanOpenURLScheme:urlScheme]){
+    NSString *reason = [NSString stringWithFormat:@"%@ is missing from your Info.plist under LSApplicationQueriesSchemes and is required for iOS 9.0", urlScheme];
+#ifdef __IPHONE_9_0
+    @throw [NSException exceptionWithName:@"InvalidOperationException" reason:reason userInfo:nil];
+#else
+    [FBSDKLogger singleShotLogEntry:FBSDKLoggingBehaviorDeveloperErrors logEntry:reason];
+#endif
+  }
+}
+
++ (BOOL)isRegisteredCanOpenURLScheme:(NSString *)urlScheme
+{
+  static dispatch_once_t fetchBundleOnce;
+  static NSArray *schemes = nil;
+
+  dispatch_once(&fetchBundleOnce, ^{
+    schemes = [[[NSBundle mainBundle] infoDictionary] valueForKey:@"LSApplicationQueriesSchemes"];
+  });
+
+  return [schemes containsObject:urlScheme];
 }
 
 @end

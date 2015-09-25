@@ -120,7 +120,9 @@ typedef void (^HTTPStubCallback)(NSURLRequest *request);
     return matchingKey(request.URL.absoluteString) != nil;
   } withStubResponse:^OHHTTPStubsResponse *(NSURLRequest *request) {
     id result = requestsAndResponses[matchingKey(request.URL.absoluteString)];
-    NSData *data = [[FBSDKInternalUtility JSONStringForObject:result error:NULL] dataUsingEncoding:NSUTF8StringEncoding];
+    NSData *data = [[FBSDKInternalUtility JSONStringForObject:result
+                                                        error:NULL
+                                         invalidObjectHandler:NULL] dataUsingEncoding:NSUTF8StringEncoding];
 
     return [OHHTTPStubsResponse responseWithData:data
                                       statusCode:statusCode
@@ -143,7 +145,7 @@ typedef void (^HTTPStubCallback)(NSURLRequest *request);
     askedForPhone = [queryParameters[@"fields"] rangeOfString:@"iphone"].location != NSNotFound;
     return YES;
   } withStubResponse:^OHHTTPStubsResponse *(NSURLRequest *request) {
-    return [OHHTTPStubsResponse responseWithData:nil
+    return [OHHTTPStubsResponse responseWithData:[NSData data]
                                       statusCode:200
                                          headers:nil];
   }];
@@ -200,7 +202,7 @@ typedef void (^HTTPStubCallback)(NSURLRequest *request);
     askedForPad = [queryParameters[@"fields"] rangeOfString:@"ipad"].location != NSNotFound;
     return YES;
   } withStubResponse:^OHHTTPStubsResponse *(NSURLRequest *request) {
-    return [OHHTTPStubsResponse responseWithData:nil
+    return [OHHTTPStubsResponse responseWithData:[NSData data]
                                       statusCode:200
                                          headers:nil];
   }];

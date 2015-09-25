@@ -26,12 +26,12 @@ static NSString *const kAccountsDictionaryPermissionsKey = @"permissions";
 static NSMutableDictionary *gInstancesDictionary;
 
 @interface FBSDKTestUsersManager()
-- (instancetype)initWithAppId:(NSString *)appId appSecret:(NSString *)appSecret NS_DESIGNATED_INITIALIZER;
+- (instancetype)initWithAppID:(NSString *)appID appSecret:(NSString *)appSecret NS_DESIGNATED_INITIALIZER;
 @end
 
 @implementation FBSDKTestUsersManager
 {
-  NSString *_appId;
+  NSString *_appID;
   NSString *_appSecret;
   // dictionary with format like:
   // { user_id :  { kAccountsDictionaryTokenKey : "token",
@@ -39,9 +39,9 @@ static NSMutableDictionary *gInstancesDictionary;
   NSMutableDictionary *_accounts;
 }
 
-- (instancetype)initWithAppId:(NSString *)appId appSecret:(NSString *)appSecret {
+- (instancetype)initWithAppID:(NSString *)appID appSecret:(NSString *)appSecret {
   if ((self = [super init])) {
-    _appId = [appId copy];
+    _appID = [appID copy];
     _appSecret = [appSecret copy];
     _accounts = [NSMutableDictionary dictionary];
   }
@@ -50,19 +50,19 @@ static NSMutableDictionary *gInstancesDictionary;
 
 - (instancetype)init
 {
-  FBSDK_NOT_DESIGNATED_INITIALIZER
-  return [self initWithAppId:nil appSecret:nil];
+  FBSDK_NOT_DESIGNATED_INITIALIZER(initWithAppID:appSecret:);
+  return [self initWithAppID:nil appSecret:nil];
 }
 
-+ (instancetype)sharedInstanceForAppId:(NSString *)appId appSecret:(NSString *)appSecret {
++ (instancetype)sharedInstanceForAppID:(NSString *)appID appSecret:(NSString *)appSecret {
   static dispatch_once_t onceToken;
   dispatch_once(&onceToken, ^{
     gInstancesDictionary = [NSMutableDictionary dictionary];
   });
 
-  NSString *instanceKey = [NSString stringWithFormat:@"%@|%@", appId, appSecret];
+  NSString *instanceKey = [NSString stringWithFormat:@"%@|%@", appID, appSecret];
   if (!gInstancesDictionary[instanceKey]) {
-    gInstancesDictionary[instanceKey] = [[FBSDKTestUsersManager alloc] initWithAppId:appId appSecret:appSecret];
+    gInstancesDictionary[instanceKey] = [[FBSDKTestUsersManager alloc] initWithAppID:appID appSecret:appSecret];
   }
   return gInstancesDictionary[instanceKey];
 }
@@ -122,7 +122,7 @@ static NSMutableDictionary *gInstancesDictionary;
     }
   };
   if (_accounts.count == 0) {
-    [self fetchExistingTestAccounts:helper];
+    [self fetchExistingTestAccountsWithAfterCursor:nil handler:helper];
   } else {
     helper(NULL);
   }
@@ -135,7 +135,7 @@ static NSMutableDictionary *gInstancesDictionary;
                            @"permissions" : [[permissions allObjects] componentsJoinedByString:@","],
                            @"access_token" : self.appAccessToken
                            };
-  FBSDKGraphRequest *request = [[FBSDKGraphRequest alloc] initWithGraphPath:[NSString stringWithFormat:kFBGraphAPITestUsersPathFormat, _appId]
+  FBSDKGraphRequest *request = [[FBSDKGraphRequest alloc] initWithGraphPath:[NSString stringWithFormat:kFBGraphAPITestUsersPathFormat, _appID]
                                                                  parameters:params
                                                                 tokenString:[self appAccessToken]
                                                                     version:nil
@@ -165,8 +165,9 @@ static NSMutableDictionary *gInstancesDictionary;
 {
   __block int expectedCount = 2;
   void (^complete)(NSError *) = ^(NSError *error) {
-    // ignore if they're already friends
-    if ([error.userInfo[FBSDKGraphRequestErrorGraphErrorCode] integerValue] == 522) {
+    // ignore if they're already friends or pending request
+    if ([error.userInfo[FBSDKGraphRequestErrorGraphErrorCode] integerValue] == 522 ||
+        [error.userInfo[FBSDKGraphRequestErrorGraphErrorCode] integerValue] == 520) {
       error = nil;
     }
     if (--expectedCount == 0 || error) {
@@ -186,10 +187,10 @@ static NSMutableDictionary *gInstancesDictionary;
   FBSDKGraphRequestConnection *conn = [[FBSDKGraphRequestConnection alloc] init];
   [conn addRequest:one completionHandler:^(FBSDKGraphRequestConnection *connection, id result, NSError *error) {
     complete(error);
-  }];
+  } batchEntryName:@"first"];
   [conn addRequest:two completionHandler:^(FBSDKGraphRequestConnection *connection, id result, NSError *error) {
     complete(error);
-  }];
+  } batchParameters:@{ @"depends_on" : @"first"} ];
   [conn start];
 }
 
@@ -211,7 +212,7 @@ static NSMutableDictionary *gInstancesDictionary;
   return [[FBSDKAccessToken alloc] initWithTokenString:tokenString
                                            permissions:[permissions allObjects]
                                    declinedPermissions:nil
-                                                 appID:_appId
+                                                 appID:_appID
                                                 userID:userId
                                         expirationDate:nil
                                            refreshDate:nil];
@@ -240,60 +241,86 @@ static NSMutableDictionary *gInstancesDictionary;
 }
 
 - (NSString *)appAccessToken {
-  return [NSString stringWithFormat:@"%@|%@", _appId, _appSecret];
+  return [NSString stringWithFormat:@"%@|%@", _appID, _appSecret];
 }
 
-- (void)fetchExistingTestAccounts:(void(^)(NSError *error))handler {
+- (void)fetchExistingTestAccountsWithAfterCursor:(NSString *)after handler:(void(^)(NSError *error))handler {
   FBSDKGraphRequestConnection *connection = [[FBSDKGraphRequestConnection alloc] init];
-  FBSDKGraphRequest *requestForAccountIds = [[FBSDKGraphRequest alloc] initWithGraphPath:[NSString stringWithFormat:kFBGraphAPITestUsersPathFormat, _appId]
-                                                                              parameters:nil
+  FBSDKGraphRequest *requestForAccountIds = [[FBSDKGraphRequest alloc] initWithGraphPath:[NSString stringWithFormat:kFBGraphAPITestUsersPathFormat, _appID]
+                                                                              parameters:@{@"limit" : @"50",
+                                                                                           @"after" : after ?: @"",
+                                                                                           @"fields": @""
+                                                                                           }
                                                                              tokenString:self.appAccessToken
                                                                                  version:nil
                                                                               HTTPMethod:nil];
-  __block BOOL noTestAccounts = YES;
+  __block NSString *afterCursor = nil;
+  __block NSInteger expectedTestAccounts = 0;
+  FBSDKGraphRequestConnection *permissionConnection = [[FBSDKGraphRequestConnection alloc] init];
   [connection addRequest:requestForAccountIds completionHandler:^(FBSDKGraphRequestConnection *innerConnection, id result, NSError *error) {
     if (error) {
       if (handler) {
         handler(error);
       }
+      // on errors, clear out accounts since it may be in a bad state
+      [_accounts removeAllObjects];
+      return;
     } else {
       for (NSDictionary *account in result[@"data"]) {
         NSString *userId = account[@"id"];
-        _accounts[userId] = [NSMutableDictionary dictionaryWithCapacity:2];
-        _accounts[userId][kAccountsDictionaryTokenKey] = account[@"access_token"];
-        noTestAccounts = NO;
+        NSString *token = account[@"access_token"];
+        if (userId && token) {
+          _accounts[userId] = [NSMutableDictionary dictionaryWithCapacity:2];
+          _accounts[userId][kAccountsDictionaryTokenKey] = token;
+          expectedTestAccounts++;
+          [permissionConnection addRequest:[[FBSDKGraphRequest alloc] initWithGraphPath:[NSString stringWithFormat:@"%@?fields=permissions", userId]
+                                                                             parameters:nil
+                                                                            tokenString:self.appAccessToken
+                                                                                version:nil
+                                                                             HTTPMethod:nil]
+                         completionHandler:^(FBSDKGraphRequestConnection *innerConnection2, id innerResult, NSError *innerError) {
+                           if (_accounts.count == 0) {
+                             // indicates an earlier error that was already passed to handler, so just short circuit.
+                             return;
+                           }
+                           if (innerError) {
+                             if (handler) {
+                               handler(innerError);
+                             }
+                             [_accounts removeAllObjects];
+                             return;
+                           } else {
+                             NSMutableSet *grantedPermissions = [NSMutableSet set];
+                             NSArray *resultPermissionsDictionaries = innerResult[@"permissions"][@"data"];
+                             [resultPermissionsDictionaries enumerateObjectsUsingBlock:^(NSDictionary *obj, NSUInteger idx, BOOL *stop) {
+                               if ([obj[@"status"] isEqualToString:@"granted"]) {
+                                 [grantedPermissions addObject:obj[@"permission"]];
+                               }
+                             }];
+                             _accounts[userId][kAccountsDictionaryPermissionsKey] = grantedPermissions;
+                           }
+                           expectedTestAccounts--;
+                           if (!expectedTestAccounts) {
+                             if (afterCursor) {
+                               [self fetchExistingTestAccountsWithAfterCursor:afterCursor handler:handler];
+                             } else if (handler) {
+                               handler(nil);
+                             }
+                           }
+                         }
+           ];
+        }
       }
+      afterCursor = result[@"paging"][@"cursors"][@"after"];
     }
-  } batchParameters:@{@"name":@"test-accounts", @"omit_response_on_success":@(NO)}];
 
-  FBSDKGraphRequest *requestForUsersPermissions = [[FBSDKGraphRequest alloc] initWithGraphPath:@"?ids={result=test-accounts:$.data.*.id}&fields=permissions"
-                                                                                    parameters:nil
-                                                                                   tokenString:self.appAccessToken
-                                                                                       version:nil
-                                                                                    HTTPMethod:nil];
-  [connection addRequest:requestForUsersPermissions completionHandler:^(FBSDKGraphRequestConnection *innerConnection, id result, NSError *error) {
-    if (noTestAccounts) {
+    if (expectedTestAccounts) {
+      // finished fetching ids and tokens, now kick off the request for all the permissions
+      [permissionConnection start];
+    } else {
       if (handler) {
         handler(nil);
       }
-      return;
-    }
-    if (error) {
-      if (handler) {
-        handler(error);
-      }
-    } else {
-      for (NSString *userId in [result allKeys]) {
-        NSMutableSet *grantedPermissions = [NSMutableSet set];
-        NSArray *resultPermissionsDictionaries = result[userId][@"permissions"][@"data"];
-        [resultPermissionsDictionaries enumerateObjectsUsingBlock:^(NSDictionary *obj, NSUInteger idx, BOOL *stop) {
-          [grantedPermissions addObject:obj[@"permission"]];
-        }];
-        _accounts[userId][kAccountsDictionaryPermissionsKey] = grantedPermissions;
-      }
-    }
-    if (handler) {
-      handler(nil);
     }
   }];
   [connection start];
