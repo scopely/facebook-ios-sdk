@@ -33,7 +33,7 @@
 {
   FBSDKAppInviteContent *content = [[self class] _content];
   XCTAssertEqualObjects(content.appLinkURL, [[self class] _appLinkURL]);
-  XCTAssertEqualObjects(content.previewImageURL, [[self class] _previewImageURL]);
+  XCTAssertEqualObjects(content.appInvitePreviewImageURL, [[self class] _appInvitePreviewImageURL]);
 }
 
 - (void)testCopy
@@ -75,8 +75,8 @@
 
 - (void)testValidationWithNilAppLinkURL
 {
-  FBSDKAppInviteContent *content = [[FBSDKAppInviteContent alloc] initWithAppLinkURL:nil];
-  content.previewImageURL = [[self class] _previewImageURL];
+  FBSDKAppInviteContent *content = [[FBSDKAppInviteContent alloc] init];
+  content.appInvitePreviewImageURL = [[self class] _appInvitePreviewImageURL];
   NSError *error;
   XCTAssertNotNil(content);
   XCTAssertNil(error);
@@ -88,7 +88,8 @@
 
 - (void)testValidationWithNilPreviewImageURL
 {
-  FBSDKAppInviteContent *content = [[FBSDKAppInviteContent alloc] initWithAppLinkURL:[[self class] _appLinkURL]];
+  FBSDKAppInviteContent *content = [[FBSDKAppInviteContent alloc] init];
+  content.appLinkURL = [[self class] _appLinkURL];
   NSError *error;
   XCTAssertNotNil(content);
   XCTAssertNil(error);
@@ -100,8 +101,9 @@
 
 + (FBSDKAppInviteContent *)_content
 {
-  FBSDKAppInviteContent *content = [[FBSDKAppInviteContent alloc] initWithAppLinkURL:[self _appLinkURL]];
-  content.previewImageURL = [self _previewImageURL];
+  FBSDKAppInviteContent *content = [[FBSDKAppInviteContent alloc] init];
+  content.appLinkURL = [self _appLinkURL];
+  content.appInvitePreviewImageURL = [self _appInvitePreviewImageURL];
   return content;
 }
 
@@ -110,7 +112,7 @@
   return [NSURL URLWithString:@"https://fb.me/1595011414049078"];
 }
 
-+ (NSURL *)_previewImageURL
++ (NSURL *)_appInvitePreviewImageURL
 {
   return [NSURL URLWithString:@"https://fbstatic-a.akamaihd.net/rsrc.php/v2/y6/r/YQEGe6GxI_M.png"];
 }

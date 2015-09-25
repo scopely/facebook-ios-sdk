@@ -24,4 +24,8 @@ CODE_SIGN_IDENTITY[sdk=iphoneos*] = iPhone Developer
 // Packaging
 WRAPPER_EXTENSION = xctest
 
+// Linking
 OTHER_LDFLAGS = -all_load -lc++
+ENABLE_BITCODE = NO
+
+IPHONEOS_DEPLOYMENT_TARGET = 8.0

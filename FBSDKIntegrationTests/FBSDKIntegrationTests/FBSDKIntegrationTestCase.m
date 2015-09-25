@@ -19,18 +19,20 @@
 
 #import <OCMock/OCMock.h>
 
+#import <FBSDKCoreKit/FBSDKTestUsersManager.h>
+
 #import "FBSDKCoreKit+Internal.h"
 #import "FBSDKTestBlocker.h"
-#import "FBSDKTestUsersManager.h"
 
 static NSString *const FBSDKPLISTTestAppIDKey = @"IOS_SDK_TEST_APP_ID";
 static NSString *const FBSDKPLISTTestAppSecretKey = @"IOS_SDK_TEST_APP_SECRET";
 static NSString *const FBSDKPLISTTestAppClientTokenKey = @"IOS_SDK_TEST_CLIENT_TOKEN";
 
-static NSString *g_AppId;
+static NSString *g_AppID;
 static NSString *g_AppSecret;
 static NSString *g_AppClientToken;
 static FBSDKTestUsersManager *g_testUsersManager;
+static id g_mockNSBundle;
 
 @implementation FBSDKIntegrationTestCase
 
@@ -38,10 +40,10 @@ static FBSDKTestUsersManager *g_testUsersManager;
   static dispatch_once_t onceToken;
   dispatch_once(&onceToken, ^{
     NSDictionary *environment = [[NSProcessInfo processInfo] environment];
-    g_AppId = [environment objectForKey:FBSDKPLISTTestAppIDKey];
+    g_AppID = [environment objectForKey:FBSDKPLISTTestAppIDKey];
     g_AppSecret = [environment objectForKey:FBSDKPLISTTestAppSecretKey];
     g_AppClientToken= [environment objectForKey:FBSDKPLISTTestAppClientTokenKey];
-    if (g_AppId.length == 0 || g_AppSecret.length == 0 || g_AppClientToken.length == 0) {
+    if (g_AppID.length == 0 || g_AppSecret.length == 0 || g_AppClientToken.length == 0) {
       [[NSException exceptionWithName:NSInternalInconsistencyException
                                reason:
         @"Integration Tests Cannot Be Run."
@@ -56,30 +58,28 @@ static FBSDKTestUsersManager *g_testUsersManager;
                              userInfo:nil]
        raise];
     }
-    [FBSDKSettings setAppID:g_AppId];
-    g_testUsersManager = [FBSDKTestUsersManager sharedInstanceForAppId:g_AppId appSecret:g_AppSecret];
+    [FBSDKSettings setAppID:g_AppID];
+    g_testUsersManager = [FBSDKTestUsersManager sharedInstanceForAppID:g_AppID appSecret:g_AppSecret];
   });
+
+  if (self == [FBSDKIntegrationTestCase class]) {
+    // swizzle out mainBundle - XCTest returns the XCTest program bundle instead of the target,
+    // and our keychain code is coded against mainBundle.
+    g_mockNSBundle = [OCMockObject niceMockForClass:[NSBundle class]];
+    NSBundle *correctMainBundle = [NSBundle bundleForClass:[self class]];
+    [[[[g_mockNSBundle stub] classMethod] andReturn:correctMainBundle] mainBundle];
+  }
 }
 
-- (void)setUp
++ (void)tearDown
 {
-  [super setUp];
-
-  // swizzle out mainBundle - XCTest returns the XCTest program bundle instead of the target,
-  // and our keychain code is coded against mainBundle.
-  _mockNSBundle = [OCMockObject niceMockForClass:[NSBundle class]];
-  NSBundle *correctMainBundle = [NSBundle bundleForClass:[self class]];
-  [[[[_mockNSBundle stub] classMethod] andReturn:correctMainBundle] mainBundle];
-}
-
-- (void)tearDown
-{
-  [super tearDown];
+  [g_mockNSBundle stopMocking];
+  g_mockNSBundle = nil;
 }
 
 #pragma mark - Properties
-- (NSString *)testAppId{
-  return g_AppId;
+- (NSString *)testAppID{
+  return g_AppID;
 }
 
 - (NSString *)testAppClientToken {
@@ -91,7 +91,7 @@ static FBSDKTestUsersManager *g_testUsersManager;
 }
 
 - (NSString *)testAppToken {
-  return [NSString stringWithFormat:@"%@|%@", g_AppId, g_AppSecret];
+  return [NSString stringWithFormat:@"%@|%@", g_AppID, g_AppSecret];
 }
 
 #pragma mark - Methods

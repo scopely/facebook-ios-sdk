@@ -27,6 +27,7 @@
 #import <XCTest/XCTest.h>
 
 #import "FBSDKCoreKit+Internal.h"
+#import "FBSDKShareKitTestUtility.h"
 #import "FBSDKShareModelTestUtility.h"
 
 @interface FBSDKShareDialogTests : XCTestCase
@@ -39,6 +40,7 @@
   if (block != NULL) {
     id applicationMock = [OCMockObject mockForClass:[UIApplication class]];
     [[[applicationMock stub] andReturnValue:@(canOpen)] canOpenURL:URL];
+    [[[applicationMock stub] andReturn:nil] keyWindow];
     id applicationClassMock = [OCMockObject mockForClass:[UIApplication class]];
     [[[[applicationClassMock stub] classMethod] andReturn:applicationMock] sharedApplication];
     block();
@@ -47,20 +49,41 @@
   }
 }
 
+- (void)_mockUseNativeDialogUsingBlock:(void(^)(void))block
+{
+  if (block != NULL) {
+    id configurationMock = [OCMockObject mockForClass:[FBSDKServerConfiguration class]];
+    [[[configurationMock stub] andReturnValue:@YES] useNativeDialogForDialogName:FBSDKDialogConfigurationNameShare];
+    id configurationManagerClassMock = [OCMockObject mockForClass:[FBSDKServerConfigurationManager class]];
+    [[[[configurationManagerClassMock stub] classMethod] andReturn:configurationMock] cachedServerConfiguration];
+    block();
+    [configurationManagerClassMock stopMocking];
+    [configurationMock stopMocking];
+  }
+}
+
+- (void)setUp
+{
+  [super setUp];
+  [FBSDKShareKitTestUtility mainBundleMock];
+}
+
 - (void)testCanShowNative
 {
   FBSDKShareDialog *dialog = [[FBSDKShareDialog alloc] init];
   dialog.mode = FBSDKShareDialogModeNative;
   [self _mockApplicationForURL:OCMOCK_ANY canOpen:YES usingBlock:^{
-    XCTAssertTrue([dialog canShow]);
-    dialog.shareContent = [FBSDKShareModelTestUtility linkContent];
-    XCTAssertTrue([dialog canShow]);
-    dialog.shareContent = [FBSDKShareModelTestUtility photoContent];
-    XCTAssertTrue([dialog canShow]);
-    dialog.shareContent = [FBSDKShareModelTestUtility openGraphContent];
-    XCTAssertTrue([dialog canShow]);
-    dialog.shareContent = [FBSDKShareModelTestUtility videoContentWithoutPreviewPhoto];
-    XCTAssertTrue([dialog canShow]);
+    [self _mockUseNativeDialogUsingBlock:^{
+      XCTAssertTrue([dialog canShow]);
+      dialog.shareContent = [FBSDKShareModelTestUtility linkContent];
+      XCTAssertTrue([dialog canShow]);
+      dialog.shareContent = [FBSDKShareModelTestUtility photoContent];
+      XCTAssertTrue([dialog canShow]);
+      dialog.shareContent = [FBSDKShareModelTestUtility openGraphContent];
+      XCTAssertTrue([dialog canShow]);
+      dialog.shareContent = [FBSDKShareModelTestUtility videoContentWithoutPreviewPhoto];
+      XCTAssertTrue([dialog canShow]);
+    }];
   }];
   dialog.shareContent = nil;
   [self _mockApplicationForURL:OCMOCK_ANY canOpen:NO usingBlock:^{
@@ -76,23 +99,16 @@
   }];
 }
 
-- (void)testValidateNative
+- (void)testShowNativeDoesValidate
 {
   FBSDKShareDialog *dialog = [[FBSDKShareDialog alloc] init];
   dialog.mode = FBSDKShareDialogModeNative;
-  NSError *error;
-  dialog.shareContent = [FBSDKShareModelTestUtility linkContent];
-  XCTAssertTrue([dialog validateWithError:&error]);
-  XCTAssertNil(error);
-  dialog.shareContent = [FBSDKShareModelTestUtility photoContentWithImages];
-  XCTAssertTrue([dialog validateWithError:&error]);
-  XCTAssertNil(error);
-  dialog.shareContent = [FBSDKShareModelTestUtility openGraphContent];
-  XCTAssertTrue([dialog validateWithError:&error]);
-  XCTAssertNil(error);
-  dialog.shareContent = [FBSDKShareModelTestUtility videoContentWithoutPreviewPhoto];
-  XCTAssertTrue([dialog validateWithError:&error]);
-  XCTAssertNil(error);
+  FBSDKSharePhotoContent *content = [[FBSDKSharePhotoContent alloc] init];
+  content.photos = @[ [FBSDKSharePhoto photoWithImageURL:[FBSDKShareModelTestUtility photoImageURL] userGenerated:NO] ];
+  dialog.shareContent = content;
+  [self _mockApplicationForURL:OCMOCK_ANY canOpen:YES usingBlock:^{
+    XCTAssertFalse([dialog show]);
+  }];
 }
 
 - (void)testValidateShareSheet
@@ -114,7 +130,7 @@
   XCTAssertNotNil(error);
   dialog.shareContent = [FBSDKShareModelTestUtility videoContentWithoutPreviewPhoto];
   XCTAssertFalse([dialog validateWithError:&error]);
-  XCTAssertNotNil(error);
+  XCTAssertNil(error);
 }
 
 - (void)testCanShowBrowser
