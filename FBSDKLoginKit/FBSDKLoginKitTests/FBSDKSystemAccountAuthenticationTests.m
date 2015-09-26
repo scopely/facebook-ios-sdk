@@ -16,6 +16,8 @@
 // IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 // CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+#import <objc/runtime.h>
+
 #import <Accounts/Accounts.h>
 
 #import <OCMock/OCMock.h>
@@ -34,6 +36,18 @@
 @implementation FBSDKSystemAccountAuthenticationTests
 {
   id _mockNSBundle;
+  Method _originalIsRegisteredCheck;
+  Method _swizzledIsRegisteredCheck;
+}
+
++ (id)internalUtilityMock
+{
+  // swizzle out mainBundle - XCTest returns the XCTest program bundle instead of the target,
+  // and our keychain code is coded against mainBundle.
+  id mockUtility = [OCMockObject niceMockForClass:[FBSDKInternalUtility class]];
+  [[[mockUtility stub] andReturnValue:OCMOCK_VALUE(YES)] isRegisteredURLScheme:[OCMArg any]];
+  [[mockUtility stub] checkRegisteredCanOpenURLScheme:[OCMArg any]];
+  return mockUtility;
 }
 
 - (void)setUp
@@ -64,16 +78,25 @@
 
 - (void)testImplOpenDoesNotTrySystemAccountAuthWithBehavior:(FBSDKLoginBehavior)behavior
 {
+  id mockUtility = [FBSDKSystemAccountAuthenticationTests internalUtilityMock];
+
   id target = [OCMockObject partialMockForObject:[[FBSDKLoginManager alloc] init]];
 
   id shortCircuitAuthBlock = ^ (NSInvocation *invocation) {
-    BOOL returnValue = YES;
-    [invocation setReturnValue:&returnValue];
+    void(^handler)(BOOL, NSError*);
+    [invocation getArgument:&handler atIndex:3];
+    handler(YES, nil);
   };
 
-  [[[target stub] andDo:shortCircuitAuthBlock] performNativeLogInWithParameters:[OCMArg any] error:[OCMArg anyObjectRef]];
-  [[[target stub] andDo:shortCircuitAuthBlock] performBrowserLogInWithParameters:[OCMArg any] error:[OCMArg anyObjectRef]];
-  [[[target stub] andDo:shortCircuitAuthBlock] performWebLogInWithParameters:[OCMArg any]];
+  id shortCircuitBrowserAuthBlock = ^ (NSInvocation *invocation) {
+    void(^handler)(BOOL, NSString *,NSError*);
+    [invocation getArgument:&handler atIndex:3];
+    handler(YES, @"", nil);
+  };
+
+  [[[target stub] andDo:shortCircuitAuthBlock] performNativeLogInWithParameters:[OCMArg any] handler:[OCMArg any]];
+  [[[target stub] andDo:shortCircuitBrowserAuthBlock] performBrowserLogInWithParameters:[OCMArg any] handler:[OCMArg any]];
+  [[[target stub] andDo:shortCircuitAuthBlock] performWebLogInWithParameters:[OCMArg any] handler:[OCMArg any]];
 
   // the test fails if system auth is performed
   [[[target stub] andDo:^(NSInvocation *invocation) {
@@ -84,7 +107,8 @@
   }] performSystemLogIn];
 
   [target setLoginBehavior:behavior];
-  [target logInWithReadPermissions:@[@"public_profile"] handler:nil];
+  [target logInWithReadPermissions:@[@"public_profile"] fromViewController:nil handler:nil];
+  [mockUtility stopMocking];
 }
 
 - (void)testSystemAccountSuccess
@@ -111,7 +135,7 @@
   parameters.appID = [FBSDKSettings appID];
   parameters.userID = @"37175274";
 
-  [target completeAuthentication:parameters];
+  [target completeAuthentication:parameters expectChallenge:NO];
 }
 
 - (void)testSystemAccountCancellationGeneratesError
@@ -148,6 +172,8 @@
 - (void)testSystemAccountNotAvailableTriesNextAuthMethodServer:(BOOL)serverSupports
                                                         device:(BOOL)deviceSupports
 {
+  id mockUtility = [FBSDKSystemAccountAuthenticationTests internalUtilityMock];
+
   id target = [OCMockObject partialMockForObject:[[FBSDKLoginManager alloc] init]];
   [target setLoginBehavior:FBSDKLoginBehaviorSystemAccount];
 
@@ -160,13 +186,21 @@
   id attemptedAuthBlock = ^ (NSInvocation *invocation) {
     invocationCount++;
 
-    BOOL returnValue = YES;
-    [invocation setReturnValue:&returnValue];
+    void(^handler)(BOOL, NSError*);
+    [invocation getArgument:&handler atIndex:3];
+    handler(YES, nil);
+    [expectation fulfill];
+  };
+  id attemptBrowserAuthBlock = ^ (NSInvocation *invocation) {
+    invocationCount++;
+    void(^handler)(BOOL, NSString *,NSError*);
+    [invocation getArgument:&handler atIndex:3];
+    handler(YES, @"", nil);
     [expectation fulfill];
   };
 
-  [[[target stub] andDo:attemptedAuthBlock] performNativeLogInWithParameters:[OCMArg any] error:[OCMArg anyObjectRef]];
-  [[[target stub] andDo:attemptedAuthBlock] performBrowserLogInWithParameters:[OCMArg any] error:[OCMArg anyObjectRef]];
+  [[[target stub] andDo:attemptedAuthBlock] performNativeLogInWithParameters:[OCMArg any] handler:[OCMArg any]];
+  [[[target stub] andDo:attemptBrowserAuthBlock] performBrowserLogInWithParameters:[OCMArg any] handler:[OCMArg any]];
 
   [[[target stub] andDo:^ (NSInvocation *invocation) {
     invocationCount++;
@@ -176,26 +210,22 @@
     }
   }] beginSystemLogIn];
 
-  // this shouldn't actually be invoked
-  [[[target stub] andDo:^(NSInvocation *invocation) {
-    invocationCount++;
-
-    BOOL returnValue = YES;
-    [invocation setReturnValue:&returnValue];
-  }] performWebLogInWithParameters:[OCMArg any]];
-
   FBSDKServerConfiguration *configuration =
     [[FBSDKServerConfiguration alloc] initWithAppID:[FBSDKSettings appID]
                                             appName:@"Unit Tests"
                                 loginTooltipEnabled:NO
                                    loginTooltipText:nil
+                                   defaultShareMode:nil
                                advertisingIDEnabled:NO
                              implicitLoggingEnabled:NO
                      implicitPurchaseLoggingEnabled:NO
                         systemAuthenticationEnabled:serverSupports
+                              nativeAuthFlowEnabled:serverSupports
                                dialogConfigurations:nil
+                                        dialogFlows:nil
                                           timestamp:[NSDate date]
-                                 errorConfiguration:nil];
+                                 errorConfiguration:nil
+                                           defaults:NO];
   [FBSDKServerConfigurationManager _didLoadServerConfiguration:configuration appID:[FBSDKSettings appID] error:nil didLoadFromUserDefaults:YES];
 
   [target setRequestedPermissions:permissions];
@@ -212,6 +242,8 @@
     XCTAssertNil(timeoutError);
   }];
   XCTAssertEqual(invocationCount, (!serverSupports ? 1 : 2));
+
+  [mockUtility stopMocking];
 }
 
 @end

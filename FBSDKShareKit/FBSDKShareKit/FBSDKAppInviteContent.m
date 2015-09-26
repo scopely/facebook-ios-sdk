@@ -25,18 +25,14 @@
 
 @implementation FBSDKAppInviteContent
 
-- (instancetype)init
+- (NSURL *)previewImageURL
 {
-  FBSDK_NOT_DESIGNATED_INITIALIZER;
-  return [self initWithAppLinkURL:nil];
+  return self.appInvitePreviewImageURL;
 }
 
-- (instancetype)initWithAppLinkURL:(NSURL *)appLinkURL
+- (void)setPreviewImageURL:(NSURL *)previewImageURL
 {
-  if ((self = [super init])) {
-    _appLinkURL = [appLinkURL copy];
-  }
-  return self;
+  self.appInvitePreviewImageURL = previewImageURL;
 }
 
 #pragma mark - Equality
@@ -45,7 +41,7 @@
 {
   NSUInteger subhashes[] = {
     [_appLinkURL hash],
-    [_previewImageURL hash],
+    [_appInvitePreviewImageURL hash],
   };
   return [FBSDKMath hashWithIntegerArray:subhashes count:sizeof(subhashes) / sizeof(subhashes[0])];
 }
@@ -65,7 +61,7 @@
 {
   return (content &&
           [FBSDKInternalUtility object:_appLinkURL isEqualToObject:content.appLinkURL] &&
-          [FBSDKInternalUtility object:_previewImageURL isEqualToObject:content.previewImageURL]);
+          [FBSDKInternalUtility object:_appInvitePreviewImageURL isEqualToObject:content.appInvitePreviewImageURL]);
 }
 
 #pragma mark - NSCoding
@@ -77,9 +73,9 @@
 
 - (id)initWithCoder:(NSCoder *)decoder
 {
-  NSURL *appLinkURL = [decoder decodeObjectOfClass:[NSURL class] forKey:FBSDK_APP_INVITE_CONTENT_APP_LINK_URL_KEY];
-  if ((self = [self initWithAppLinkURL:appLinkURL])) {
-    _previewImageURL = [decoder decodeObjectOfClass:[NSURL class] forKey:FBSDK_APP_INVITE_CONTENT_PREVIEW_IMAGE_KEY];
+  if ((self = [self init])) {
+    _appLinkURL = [decoder decodeObjectOfClass:[NSURL class] forKey:FBSDK_APP_INVITE_CONTENT_APP_LINK_URL_KEY];
+    _appInvitePreviewImageURL = [decoder decodeObjectOfClass:[NSURL class] forKey:FBSDK_APP_INVITE_CONTENT_PREVIEW_IMAGE_KEY];
   }
   return self;
 }
@@ -87,15 +83,16 @@
 - (void)encodeWithCoder:(NSCoder *)encoder
 {
   [encoder encodeObject:_appLinkURL forKey:FBSDK_APP_INVITE_CONTENT_APP_LINK_URL_KEY];
-  [encoder encodeObject:_previewImageURL forKey:FBSDK_APP_INVITE_CONTENT_PREVIEW_IMAGE_KEY];
+  [encoder encodeObject:_appInvitePreviewImageURL forKey:FBSDK_APP_INVITE_CONTENT_PREVIEW_IMAGE_KEY];
 }
 
 #pragma mark - NSCopying
 
 - (id)copyWithZone:(NSZone *)zone
 {
-  FBSDKAppInviteContent *copy = [[FBSDKAppInviteContent alloc] initWithAppLinkURL:_appLinkURL];
-  copy->_previewImageURL = [_previewImageURL copy];
+  FBSDKAppInviteContent *copy = [[FBSDKAppInviteContent alloc] init];
+  copy->_appLinkURL = [_appLinkURL copy];
+  copy->_appInvitePreviewImageURL = [_appInvitePreviewImageURL copy];
   return copy;
 }
 

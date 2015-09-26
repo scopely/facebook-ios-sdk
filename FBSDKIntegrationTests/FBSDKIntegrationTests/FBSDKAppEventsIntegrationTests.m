@@ -59,7 +59,7 @@
 
 - (void)setUp {
   [super setUp];
-  [FBSDKSettings setAppID:self.testAppId];
+  [FBSDKSettings setAppID:self.testAppID];
   // default to disabling timer based flushes so that long tests
   // don't get more flushes than explicitly expecting.
   [FBSDKAppEvents singleton].disableTimer = YES;
@@ -78,7 +78,7 @@
 }
 
 - (void)testActivate {
-  NSString *appID = self.testAppId;
+  NSString *appID = self.testAppID;
   FBSDKTestBlocker *blocker = [[FBSDKTestBlocker alloc] initWithExpectedSignalCount:1];
   FBSDKTestBlocker *blocker2 = [[FBSDKTestBlocker alloc] initWithExpectedSignalCount:1];
   __block int activiesEndpointCalledCount = 0;
@@ -102,7 +102,7 @@
     // to intercept and verify request to fufill the expectation.
     return NO;
   } withStubResponse:^OHHTTPStubsResponse *(NSURLRequest *request) {
-    return [OHHTTPStubsResponse responseWithData:nil
+    return [OHHTTPStubsResponse responseWithData:[NSData data]
                                       statusCode:200
                                          headers:nil];
   }];
@@ -128,7 +128,7 @@
   __block NSUInteger activiesEndpointCalledForActivateCount = 0;
   __block NSUInteger activiesEndpointCalledForDeactivateCount = 0;
   [OHHTTPStubs stubRequestsPassingTest:^BOOL(NSURLRequest *request) {
-    NSString *const activitiesPath = [NSString stringWithFormat:@"%@/activities", self.testAppId];
+    NSString *const activitiesPath = [NSString stringWithFormat:@"%@/activities", self.testAppID];
     if ([request.URL.path hasSuffix:activitiesPath]) {
       NSString *body = [[NSString alloc] initWithData:request.HTTPBody encoding:NSUTF8StringEncoding];
       activiesEndpointCalledForDeactivateCount = [body countOfSubstring:@"fb_mobile_deactivate_app"];
@@ -139,7 +139,7 @@
     // to intercept and verify request to fufill the expectation.
     return NO;
   } withStubResponse:^OHHTTPStubsResponse *(NSURLRequest *request) {
-    return [OHHTTPStubsResponse responseWithData:nil
+    return [OHHTTPStubsResponse responseWithData:[NSData data]
                                       statusCode:200
                                          headers:nil];
   }];
@@ -174,7 +174,7 @@
   __block NSUInteger activiesEndpointCalledForActivateCount = 0;
   __block NSUInteger activiesEndpointCalledForDeactivateCount = 0;
   [OHHTTPStubs stubRequestsPassingTest:^BOOL(NSURLRequest *request) {
-    NSString *const activitiesPath = [NSString stringWithFormat:@"%@/activities", self.testAppId];
+    NSString *const activitiesPath = [NSString stringWithFormat:@"%@/activities", self.testAppID];
     if ([request.URL.path hasSuffix:activitiesPath]) {
       NSString *body = [[NSString alloc] initWithData:request.HTTPBody encoding:NSUTF8StringEncoding];
       activiesEndpointCalledForDeactivateCount = [body countOfSubstring:@"fb_mobile_deactivate_app"];
@@ -185,7 +185,7 @@
     // to intercept and verify request to fufill the expectation.
     return NO;
   } withStubResponse:^OHHTTPStubsResponse *(NSURLRequest *request) {
-    return [OHHTTPStubsResponse responseWithData:nil
+    return [OHHTTPStubsResponse responseWithData:[NSData data]
                                       statusCode:200
                                          headers:nil];
   }];
@@ -214,7 +214,7 @@
 
 // test to verify flushing behavior when there are "session" changes.
 - (void)testLogEventsBetweenAppAndUser {
-  NSString *appID = self.testAppId;
+  NSString *appID = self.testAppID;
   FBSDKTestBlocker *blocker = [[FBSDKTestBlocker alloc] initWithExpectedSignalCount:1];
   __block int activiesEndpointCalledForUserCount = 0;
   __block int activiesEndpointCalledWithoutUserCount = 0;
@@ -237,7 +237,7 @@
     // to intercept and verify request to fufill the expectation.
     return NO;
   } withStubResponse:^OHHTTPStubsResponse *(NSURLRequest *request) {
-    return [OHHTTPStubsResponse responseWithData:nil
+    return [OHHTTPStubsResponse responseWithData:[NSData data]
                                       statusCode:200
                                          headers:nil];
   }];
@@ -267,7 +267,7 @@
 
 // similar to above but with explicit flushing.
 - (void)testLogEventsBetweenAppAndUserExplicitFlushing {
-  NSString *appID = self.testAppId;
+  NSString *appID = self.testAppID;
   FBSDKTestBlocker *blocker = [[FBSDKTestBlocker alloc] initWithExpectedSignalCount:1];
   __block int activiesEndpointCalledForUserCount = 0;
   __block int activiesEndpointCalledWithoutUserCount = 0;
@@ -290,7 +290,7 @@
     // to intercept and verify request to fufill the expectation.
     return NO;
   } withStubResponse:^OHHTTPStubsResponse *(NSURLRequest *request) {
-    return [OHHTTPStubsResponse responseWithData:nil
+    return [OHHTTPStubsResponse responseWithData:[NSData data]
                                       statusCode:200
                                          headers:nil];
   }];
@@ -322,7 +322,7 @@
 }
 
 - (void)testLogEventsThreshold {
-  NSString *appID = self.testAppId;
+  NSString *appID = self.testAppID;
   FBSDKTestBlocker *blocker = [[FBSDKTestBlocker alloc] initWithExpectedSignalCount:1];
   __block int activiesEndpointCalledCount = 0;
 
@@ -336,7 +336,7 @@
     // to intercept and verify request to fufill the expectation.
     return NO;
   } withStubResponse:^OHHTTPStubsResponse *(NSURLRequest *request) {
-    return [OHHTTPStubsResponse responseWithData:nil
+    return [OHHTTPStubsResponse responseWithData:[NSData data]
                                       statusCode:200
                                          headers:nil];
   }];
@@ -350,7 +350,7 @@
 
 // same as above but using explicit flush behavior and send more than the threshold
 - (void)testLogEventsThresholdExplicit {
-  NSString *appID = self.testAppId;
+  NSString *appID = self.testAppID;
   FBSDKTestBlocker *blocker = [[FBSDKTestBlocker alloc] initWithExpectedSignalCount:1];
   __block int activiesEndpointCalledCount = 0;
 
@@ -364,7 +364,7 @@
     // to intercept and verify request to fufill the expectation.
     return NO;
   } withStubResponse:^OHHTTPStubsResponse *(NSURLRequest *request) {
-    return [OHHTTPStubsResponse responseWithData:nil
+    return [OHHTTPStubsResponse responseWithData:[NSData data]
                                       statusCode:200
                                          headers:nil];
   }];
@@ -383,7 +383,7 @@
 }
 
 - (void)testLogEventsTimerThreshold {
-  NSString *appID = self.testAppId;
+  NSString *appID = self.testAppID;
   FBSDKTestBlocker *blocker = [[FBSDKTestBlocker alloc] initWithExpectedSignalCount:1];
   __block int activiesEndpointCalledCount = 0;
 
@@ -397,7 +397,7 @@
     // to intercept and verify request to fufill the expectation.
     return NO;
   } withStubResponse:^OHHTTPStubsResponse *(NSURLRequest *request) {
-    return [OHHTTPStubsResponse responseWithData:nil
+    return [OHHTTPStubsResponse responseWithData:[NSData data]
                                       statusCode:200
                                          headers:nil];
   }];
@@ -414,7 +414,7 @@
 
 // send logging events from different queues.
 - (void)testThreadsLogging {
-  NSString *appID = self.testAppId;
+  NSString *appID = self.testAppID;
   FBSDKTestBlocker *blocker = [[FBSDKTestBlocker alloc] initWithExpectedSignalCount:1];
   __block int activiesEndpointCalledCount = 0;
 
@@ -429,7 +429,7 @@
     // to intercept and verify request to fufill the expectation.
     return NO;
   } withStubResponse:^OHHTTPStubsResponse *(NSURLRequest *request) {
-    return [OHHTTPStubsResponse responseWithData:nil
+    return [OHHTTPStubsResponse responseWithData:[NSData data]
                                       statusCode:200
                                          headers:nil];
   }];
@@ -438,7 +438,8 @@
   // 202 events will trigger two automatic flushes
   for (int i = 0; i < 202; i++) {
     dispatch_async(queue, ^{
-      [FBSDKAppEvents logEvent:@"event-to-test-threshold-from-queue"];
+      NSString *eventName = [NSString stringWithFormat:@"event-to-test-threshold-from-queue-%d", i];
+      [FBSDKAppEvents logEvent:eventName];
     });
   }
   XCTAssertTrue([blocker waitWithTimeout:10], @"did not get automatic flushes");

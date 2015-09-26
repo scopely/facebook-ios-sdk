@@ -33,16 +33,6 @@ static NSString *const FBSDKDeferredAppLinkEvent = @"DEFERRED_APP_LINK";
   NSAssert([NSThread isMainThread], @"FBSDKAppLink fetchDeferredAppLink: must be invoked from main thread.");
 
   NSString *appID = [FBSDKSettings appID];
-  NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
-  NSString *deferredAppLinkKey = [NSString stringWithFormat:FBSDKLastDeferredAppLink, appID, nil];
-
-  // prevent multiple occurrences from happening.
-  if (handler && [defaults objectForKey:deferredAppLinkKey]) {
-    dispatch_async(dispatch_get_main_queue(), ^{
-      handler(nil, nil);
-    });
-    return;
-  }
 
   // Deferred app links are only currently used for engagement ads, thus we consider the app to be an advertising one.
   // If this is considered for organic, non-ads scenarios, we'll need to retrieve the FBAppEventsUtility.shouldAccessAdvertisingID
@@ -63,12 +53,10 @@ static NSString *const FBSDKDeferredAppLinkEvent = @"DEFERRED_APP_LINK";
                                                        NSError *error) {
     NSURL *applinkURL = nil;
     if (!error) {
-      // prevent future network requests.
-      [defaults setObject:[NSDate date] forKey:deferredAppLinkKey];
-      [defaults synchronize];
-
       NSString *appLinkString = result[@"applink_url"];
       if (appLinkString) {
+        applinkURL = [NSURL URLWithString:appLinkString];
+
         NSString *createTimeUtc = result[@"click_time"];
         if (createTimeUtc) {
           // append/translate the create_time_utc so it can be used by clients
@@ -77,8 +65,6 @@ static NSString *const FBSDKDeferredAppLinkEvent = @"DEFERRED_APP_LINK";
                                          ([applinkURL query]) ? @"&" : @"?" ,
                                          createTimeUtc ];
           applinkURL = [NSURL URLWithString:modifiedURLString];
-        } else {
-          applinkURL = [NSURL URLWithString:appLinkString];
         }
       }
     }

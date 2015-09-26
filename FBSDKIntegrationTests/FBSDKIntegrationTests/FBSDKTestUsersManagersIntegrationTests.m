@@ -20,13 +20,12 @@
 
 #import <FBSDKCoreKit/FBSDKAccessToken.h>
 #import <FBSDKCoreKit/FBSDKGraphRequest.h>
+#import <FBSDKCoreKit/FBSDKTestUsersManager.h>
 
 #import <XCTest/XCTest.h>
 
 #import "FBSDKIntegrationTestCase.h"
 #import "FBSDKTestBlocker.h"
-#import "FBSDKTestUsersManager.h"
-
 
 @interface FBSDKTestUsersManagersIntegrationTests : FBSDKIntegrationTestCase
 
@@ -38,9 +37,9 @@
 {
   XCTestExpectation *expectation = [self expectationWithDescription:@"expected callback"];
 
-  NSString *token = [NSString stringWithFormat:@"%@|%@", [self testAppId], [self testAppSecret]];
+  NSString *token = [NSString stringWithFormat:@"%@|%@", [self testAppID], [self testAppSecret]];
 
-  FBSDKGraphRequest *request = [[FBSDKGraphRequest alloc] initWithGraphPath:[NSString stringWithFormat:@"%@/accounts/test-users", [self testAppId]]
+  FBSDKGraphRequest *request = [[FBSDKGraphRequest alloc] initWithGraphPath:[NSString stringWithFormat:@"%@/accounts/test-users", [self testAppID]]
                                                                  parameters:nil
                                                                 tokenString:token
                                                                     version:nil
@@ -71,10 +70,11 @@
 - (void)testTestUserManagerDoesntCreateUnnecessaryUsers
 {
   FBSDKTestBlocker *blocker = [[FBSDKTestBlocker alloc] initWithExpectedSignalCount:1];
-  FBSDKTestUsersManager *testAccountsManager = [FBSDKTestUsersManager sharedInstanceForAppId:[self testAppId] appSecret:[self testAppSecret]];
+  FBSDKTestUsersManager *testAccountsManager = [FBSDKTestUsersManager sharedInstanceForAppID:[self testAppID] appSecret:[self testAppSecret]];
   [testAccountsManager requestTestAccountTokensWithArraysOfPermissions:nil
                                                       createIfNotFound:YES
                                                      completionHandler:^(NSArray *tokens, NSError *error) {
+                                                       XCTAssertNil(error);
                                                        [blocker signal];
 
                                                      }];
@@ -86,8 +86,8 @@
   [testAccountsManager requestTestAccountTokensWithArraysOfPermissions:nil
                                                       createIfNotFound:YES
                                                      completionHandler:^(NSArray *tokens, NSError *error) {
+                                                       XCTAssertNil(error);
                                                        [blocker signal];
-
                                                      }];
   XCTAssertTrue([blocker waitWithTimeout:30], @"timed out fetching test user");
 
@@ -99,7 +99,7 @@
 - (void)testTestUserManagerCreateNewUserAndDelete
 {
   FBSDKTestBlocker *blocker = [[FBSDKTestBlocker alloc] initWithExpectedSignalCount:1];
-  FBSDKTestUsersManager *testAccountsManager = [FBSDKTestUsersManager sharedInstanceForAppId:[self testAppId] appSecret:[self testAppSecret]];
+  FBSDKTestUsersManager *testAccountsManager = [FBSDKTestUsersManager sharedInstanceForAppID:[self testAppID] appSecret:[self testAppSecret]];
   // make sure there is no test user with user_likes, user_birthday, email, user_friends, read_stream
   NSSet *uniquePermissions = [NSSet setWithObjects:@"user_likes", @"user_birthday", @"email", @"user_friends", @"read_stream", nil];
   [testAccountsManager requestTestAccountTokensWithArraysOfPermissions:@[uniquePermissions]
@@ -130,7 +130,7 @@
 
 
   [testAccountsManager removeTestAccount:tokenData.userID completionHandler:^(NSError *error) {
-    NSString *appAccessToken = [NSString stringWithFormat:@"%@|%@", [self testAppId], [self testAppSecret]];
+    NSString *appAccessToken = [NSString stringWithFormat:@"%@|%@", [self testAppID], [self testAppSecret]];
     //verify they no longer exist.
     [[[FBSDKGraphRequest alloc] initWithGraphPath:tokenData.userID
                                        parameters:@{@"access_token" : appAccessToken }
