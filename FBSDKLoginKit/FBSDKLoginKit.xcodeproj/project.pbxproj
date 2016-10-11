@@ -339,7 +339,7 @@
 		9D9DB8D01A114E500086167B /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 0630;
+				LastUpgradeCheck = 0800;
 				ORGANIZATIONNAME = Facebook;
 				TargetAttributes = {
 					9D9DB8D81A114E500086167B = {
@@ -455,7 +455,10 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 893774B31A3B818300BE2807 /* FacebookSDK-Project-Debug.xcconfig */;
 			buildSettings = {
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				GCC_NO_COMMON_BLOCKS = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 8.0;
 				ONLY_ACTIVE_ARCH = YES;
 			};
 			name = Debug;
@@ -464,7 +467,10 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 893774B41A3B818300BE2807 /* FacebookSDK-Project-Release.xcconfig */;
 			buildSettings = {
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				GCC_NO_COMMON_BLOCKS = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 8.0;
 			};
 			name = Release;
 		};
@@ -472,6 +478,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 893774B11A3B818300BE2807 /* FacebookSDK-Library.xcconfig */;
 			buildSettings = {
+				PRODUCT_BUNDLE_IDENTIFIER = "com.facebook.sdk.$(PRODUCT_NAME:rfc1034identifier)";
 			};
 			name = Debug;
 		};
@@ -479,6 +486,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 893774B11A3B818300BE2807 /* FacebookSDK-Library.xcconfig */;
 			buildSettings = {
+				PRODUCT_BUNDLE_IDENTIFIER = "com.facebook.sdk.$(PRODUCT_NAME:rfc1034identifier)";
 			};
 			name = Release;
 		};
@@ -486,6 +494,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 893774B21A3B818300BE2807 /* FacebookSDK-LogicTests.xcconfig */;
 			buildSettings = {
+				PRODUCT_BUNDLE_IDENTIFIER = "com.facebook.sdk.$(PRODUCT_NAME:rfc1034identifier)";
 			};
 			name = Debug;
 		};
@@ -493,6 +502,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 893774B21A3B818300BE2807 /* FacebookSDK-LogicTests.xcconfig */;
 			buildSettings = {
+				PRODUCT_BUNDLE_IDENTIFIER = "com.facebook.sdk.$(PRODUCT_NAME:rfc1034identifier)";
 			};
 			name = Release;
 		};

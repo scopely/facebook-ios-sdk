@@ -125,8 +125,8 @@
 		9D0BC1671A8E892C00BE8BA4 /* FBSDKAppEventsState.m in Sources */ = {isa = PBXBuildFile; fileRef = 9D0BC1651A8E892C00BE8BA4 /* FBSDKAppEventsState.m */; };
 		9D18A8DB1A95405A00A41042 /* FBSDKAppEventsStateTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 9D18A8DA1A95405A00A41042 /* FBSDKAppEventsStateTests.m */; };
 		9D18A8E91A95495D00A41042 /* FBSDKAppEventsUtilityTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 9D18A8E81A95495D00A41042 /* FBSDKAppEventsUtilityTests.m */; };
-		9D195CC81B9FE2E000BD6BEC /* FBSDKContainerViewController.h in Headers */ = {isa = PBXBuildFile; fileRef = 9D195CC61B9FE2E000BD6BEC /* FBSDKContainerViewController.h */; settings = {ASSET_TAGS = (); }; };
-		9D195CC91B9FE2E000BD6BEC /* FBSDKContainerViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 9D195CC71B9FE2E000BD6BEC /* FBSDKContainerViewController.m */; settings = {ASSET_TAGS = (); }; };
+		9D195CC81B9FE2E000BD6BEC /* FBSDKContainerViewController.h in Headers */ = {isa = PBXBuildFile; fileRef = 9D195CC61B9FE2E000BD6BEC /* FBSDKContainerViewController.h */; };
+		9D195CC91B9FE2E000BD6BEC /* FBSDKContainerViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 9D195CC71B9FE2E000BD6BEC /* FBSDKContainerViewController.m */; };
 		9D26974D1A5DF40700143BFC /* FBSDKCoreKit.h in Headers */ = {isa = PBXBuildFile; fileRef = 9D26974C1A5DF40700143BFC /* FBSDKCoreKit.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		9D2697531A5DF40700143BFC /* FBSDKCoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9D2697471A5DF40700143BFC /* FBSDKCoreKit.framework */; };
 		9D30290A1A65C4420086B9ED /* FBSDKAccessToken.h in Headers */ = {isa = PBXBuildFile; fileRef = 9D3029081A65C4420086B9ED /* FBSDKAccessToken.h */; settings = {ATTRIBUTES = (Public, ); }; };
@@ -1137,7 +1137,7 @@
 		9D26973E1A5DF40700143BFC /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 0630;
+				LastUpgradeCheck = 0800;
 				ORGANIZATIONNAME = Facebook;
 				TargetAttributes = {
 					9D2697461A5DF40700143BFC = {
@@ -1454,7 +1454,10 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 9D2697671A5DF43700143BFC /* FacebookSDK-Project-Debug.xcconfig */;
 			buildSettings = {
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				GCC_NO_COMMON_BLOCKS = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 8.0;
 				ONLY_ACTIVE_ARCH = YES;
 			};
 			name = Debug;
@@ -1463,7 +1466,10 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 9D2697681A5DF43700143BFC /* FacebookSDK-Project-Release.xcconfig */;
 			buildSettings = {
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				GCC_NO_COMMON_BLOCKS = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 8.0;
 			};
 			name = Release;
 		};
@@ -1471,6 +1477,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 9D2697651A5DF43700143BFC /* FacebookSDK-Library.xcconfig */;
 			buildSettings = {
+				PRODUCT_BUNDLE_IDENTIFIER = "com.facebook.sdk.$(PRODUCT_NAME:rfc1034identifier)";
 			};
 			name = Debug;
 		};
@@ -1478,6 +1485,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 9D2697651A5DF43700143BFC /* FacebookSDK-Library.xcconfig */;
 			buildSettings = {
+				PRODUCT_BUNDLE_IDENTIFIER = "com.facebook.sdk.$(PRODUCT_NAME:rfc1034identifier)";
 			};
 			name = Release;
 		};
@@ -1485,6 +1493,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 9D2697661A5DF43700143BFC /* FacebookSDK-LogicTests.xcconfig */;
 			buildSettings = {
+				PRODUCT_BUNDLE_IDENTIFIER = "com.facebook.sdk.$(PRODUCT_NAME:rfc1034identifier)";
 			};
 			name = Debug;
 		};
@@ -1492,6 +1501,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 9D2697661A5DF43700143BFC /* FacebookSDK-LogicTests.xcconfig */;
 			buildSettings = {
+				PRODUCT_BUNDLE_IDENTIFIER = "com.facebook.sdk.$(PRODUCT_NAME:rfc1034identifier)";
 			};
 			name = Release;
 		};
